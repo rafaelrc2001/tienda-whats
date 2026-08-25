@@ -1,0 +1,45 @@
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+/* Tipografías del tema: títulos con serif y precios con monoespaciada. */
+.font-display {
+  font-family: 'Fraunces', serif;
+}
+
+.font-mono-price {
+  font-family: 'IBM Plex Mono', monospace;
+}
+
+/* Muescas laterales que le dan forma de ticket a la tarjeta del pedido. */
+.ticket-notch::before,
+.ticket-notch::after {
+  content: "";
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  background: var(--bg);
+  border-radius: 999px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.ticket-notch::before {
+  left: -9px;
+}
+
+.ticket-notch::after {
+  right: -9px;
+}

@@ -1,0 +1,25 @@
+{
+  "name": "pedidos-tienda",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Catálogo y pedidos por WhatsApp para tiendas de barrio: API en Node y frontend en React.",
+  "license": "ISC",
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "scripts": {
+    "dev": "concurrently -n api,web -c blue,green \"npm:dev:backend\" \"npm:dev:frontend\"",
+    "dev:backend": "npm run dev --workspace @pedidos-tienda/backend",
+    "dev:frontend": "npm run dev --workspace @pedidos-tienda/frontend",
+    "build": "npm run build --workspace @pedidos-tienda/frontend",
+    "start": "npm run start --workspace @pedidos-tienda/backend",
+    "lint": "npm run lint --workspaces --if-present"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

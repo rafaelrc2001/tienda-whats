@@ -1,0 +1,79 @@
+# ---------- dependencias ----------
+node_modules/
+/modules
+jspm_packages/
+.npm/
+.pnp
+.pnp.js
+
+# ---------- logs y diagnósticos de npm/yarn ----------
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+.eslintcache
+
+# ---------- secretos y configuración local ----------
+# El WhatsApp del negocio, los datos bancarios y cualquier llave de API
+# van aquí cuando el prototipo pase a tener backend. Nunca al repo.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# ---------- respaldos y archivos de trabajo ----------
+*.bak
+*.orig
+*.rej
+*.tmp
+*~
+tienda digital.html.bak
+
+# ---------- temporales de Office ----------
+# Word deja archivos de bloqueo "~$Especificacion_Pedidos_Tienda.docx"
+# cada vez que se abre el .docx de especificación.
+~$*
+*.docx#
+.~lock.*#
+
+# ---------- sistema operativo ----------
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+Desktop.ini
+desktop.ini
+$RECYCLE.BIN/
+*.lnk
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+
+# ---------- editores / IDE ----------
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json.example
+.idea/
+*.swp
+*.swo
+*.sublime-workspace
+*.code-workspace
+
+# ---------- herramientas de agentes ----------
+.claude/settings.local.json
+
+# ---------- salidas de build (para cuando se separe el prototipo) ----------
+dist/
+build/
+out/
+coverage/
+.cache/
+
+# ---------- datos locales del backend (JSON que hace de base de datos) ----------
+backend/data/*.json
+!backend/data/.gitkeep

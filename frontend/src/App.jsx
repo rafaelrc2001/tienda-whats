@@ -1,0 +1,83 @@
+/**
+ * Armazón de la aplicación: tema, header, menú lateral y el enrutado simple
+ * entre vistas. Toda la lógica vive en el contexto; aquí solo se decide qué
+ * pantalla se muestra.
+ */
+import BarraCarrito from "./components/carrito/BarraCarrito";
+import ModalHorario from "./components/common/ModalHorario";
+import DrawerMenu from "./components/layout/DrawerMenu";
+import Header from "./components/layout/Header";
+import { useTienda } from "./context/TiendaContext";
+import { hexToRgba } from "./lib/format";
+import { Check } from "./icons";
+import CatalogoView from "./views/CatalogoView";
+import CheckoutView from "./views/CheckoutView";
+import ClientesView from "./views/ClientesView";
+import ConfirmacionView from "./views/ConfirmacionView";
+import FinanzasView from "./views/FinanzasView";
+import IdentificacionView from "./views/IdentificacionView";
+import PerfilView from "./views/PerfilView";
+import ProductosView from "./views/ProductosView";
+
+/** Variables CSS que consumen todas las pantallas, derivadas del skin activo. */
+function estiloTema(theme) {
+  return {
+    "--bg": theme.bg,
+    "--card": theme.card,
+    "--border": theme.border,
+    "--ink": theme.ink,
+    "--muted": theme.muted,
+    "--primary": theme.primary,
+    "--primaryDark": theme.primaryDark,
+    "--accent": theme.accent,
+    "--accentInk": theme.accentInk,
+    "--headerBg": theme.headerBg,
+    "--headerInk": theme.headerInk,
+    background: "var(--bg)",
+    color: "var(--ink)",
+    minHeight: "100vh",
+    fontFamily: "'Public Sans', ui-sans-serif, system-ui",
+    position: "relative",
+    overflow: "hidden",
+    // los skins con foto llevan la imagen atenuada con el color de fondo del tema
+    ...(theme.foto
+      ? {
+          backgroundImage: `linear-gradient(${hexToRgba(theme.bg, 0.88)}, ${hexToRgba(theme.bg, 0.88)}), url(${theme.foto})`,
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          backgroundAttachment: "fixed",
+          backgroundRepeat: "no-repeat",
+        }
+      : {}),
+  };
+}
+
+export default function App() {
+  const { theme, view, clienteActivo, sesionMsg } = useTienda();
+
+  return (
+    <div style={estiloTema(theme)}>
+      <Header />
+      <DrawerMenu />
+
+      <main className="max-w-3xl mx-auto px-5 py-8 pb-28 relative z-0">
+        {sesionMsg && (
+          <div className="rounded-lg px-3 py-2 text-xs mb-5 flex items-center gap-1.5" style={{ background: "var(--card)", border: "1px solid var(--border)", color: "var(--muted)" }}>
+            <Check size={13} /> {sesionMsg}
+          </div>
+        )}
+
+        {view === "productos" && <ProductosView />}
+        {view === "catalogo" && (clienteActivo ? <CatalogoView /> : <IdentificacionView />)}
+        {view === "checkout" && <CheckoutView />}
+        {view === "confirmacion" && <ConfirmacionView />}
+        {view === "clientes" && <ClientesView />}
+        {view === "perfil" && <PerfilView />}
+        {view === "finanzas" && <FinanzasView />}
+      </main>
+
+      <BarraCarrito />
+      <ModalHorario />
+    </div>
+  );
+}
