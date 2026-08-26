@@ -1,10 +1,147 @@
 /**
- * Configuración del negocio: identidad, ubicación, datos bancarios, horario y tema.
+ * Configuración del negocio: cuenta, identidad, ubicación, datos bancarios,
+ * horario y tema.
  */
+import { useEffect, useState } from "react";
+
 import { useTienda } from "../context/TiendaContext";
+import { copiarTexto } from "../lib/clipboard";
 import { DIAS, estaEnHorario, proximaAtencion } from "../lib/horario";
 import { ICONO_SKIN, SKINS } from "../config/skins";
-import { AlertCircle, Check, Clock, Copy, ImageIcon, Landmark, MapPin, Percent, Store } from "../icons";
+import { AlertCircle, Check, Clock, Copy, ImageIcon, Landmark, Lock, MapPin, Percent, Store, User } from "../icons";
+
+const ESTILO_CAMPO = { border: "1px solid var(--border)", background: "var(--bg)", color: "var(--ink)" };
+const ESTILO_CAJA = { background: "var(--card)", border: "1px solid var(--border)" };
+
+function CampoCuenta({ etiqueta, ayuda, ...props }) {
+  return (
+    <div>
+      <label className="text-[10px] font-semibold block mb-1" style={{ color: "var(--muted)" }}>{etiqueta}</label>
+      <input {...props} className="w-full rounded-lg px-3 py-2.5 text-sm outline-none" style={ESTILO_CAMPO} />
+      {ayuda && <p className="text-[11px] mt-1" style={{ color: "var(--muted)" }}>{ayuda}</p>}
+    </div>
+  );
+}
+
+/**
+ * Datos de acceso del dueño.
+ *
+ * El nombre y el teléfono se guardan aquí y el servidor los refleja también en
+ * la configuración del negocio: para el dueño son un solo dato. El ID del
+ * negocio, en cambio, no se toca nunca — es lo que sus clientes tienen apuntado.
+ */
+function MiCuenta() {
+  const { actualizarCuenta, negocioNombre, negocioTelefono, sesion } = useTienda();
+
+  const [nombre, setNombre] = useState(negocioNombre);
+  const [telefono, setTelefono] = useState(negocioTelefono);
+  const [passwordActual, setPasswordActual] = useState("");
+  const [passwordNueva, setPasswordNueva] = useState("");
+  const [estado, setEstado] = useState({ error: "", ok: "" });
+  const [guardando, setGuardando] = useState(false);
+  const [copiado, setCopiado] = useState(false);
+
+  // los datos llegan con la hidratación, después del primer render
+  useEffect(() => setNombre(negocioNombre), [negocioNombre]);
+  useEffect(() => setTelefono(negocioTelefono), [negocioTelefono]);
+
+  function copiarId() {
+    copiarTexto(sesion.idNegocio).then(() => {
+      setCopiado(true);
+      setTimeout(() => setCopiado(false), 2000);
+    });
+  }
+
+  async function guardar() {
+    if (guardando) return;
+    setGuardando(true);
+    setEstado({ error: "", ok: "" });
+    try {
+      await actualizarCuenta({
+        nombreTienda: nombre,
+        telefono,
+        ...(passwordNueva ? { passwordActual, passwordNueva } : {}),
+      });
+      setPasswordActual("");
+      setPasswordNueva("");
+      setEstado({ error: "", ok: "Datos guardados." });
+    } catch (err) {
+      setEstado({ error: err.message, ok: "" });
+    } finally {
+      setGuardando(false);
+    }
+  }
+
+  return (
+    <div className="rounded-2xl p-4 mb-6 space-y-3" style={ESTILO_CAJA}>
+      <p className="text-xs font-semibold flex items-center gap-1.5"><User size={13} /> Mi cuenta</p>
+
+      <div>
+        <label className="text-[10px] font-semibold block mb-1" style={{ color: "var(--muted)" }}>ID del negocio</label>
+        <div className="rounded-lg px-3 py-2.5 flex items-center justify-between gap-2" style={ESTILO_CAMPO}>
+          <span className="text-sm font-semibold truncate">{sesion.idNegocio}</span>
+          <button onClick={copiarId} className="text-[11px] font-semibold flex items-center gap-1 flex-shrink-0" style={{ color: "var(--primary)" }}>
+            {copiado ? <><Check size={13} /> Copiado</> : <><Copy size={13} /> Copiar</>}
+          </button>
+        </div>
+        <p className="text-[11px] mt-1" style={{ color: "var(--muted)" }}>
+          Es lo que tus clientes escriben para entrar a tu tienda. No cambia aunque le cambies el nombre.
+        </p>
+      </div>
+
+      <CampoCuenta
+        etiqueta="Nombre de la tienda"
+        value={nombre}
+        onChange={(e) => setNombre(e.target.value)}
+        placeholder="Ej: Abarrotes La Esquina"
+      />
+
+      <CampoCuenta
+        etiqueta="Teléfono de WhatsApp"
+        value={telefono}
+        onChange={(e) => setTelefono(e.target.value)}
+        placeholder="Ej: 573001234567"
+        ayuda="Es tu usuario para entrar y el número al que llegan los pedidos."
+      />
+
+      <div className="pt-1 space-y-3" style={{ borderTop: "1px solid var(--border)" }}>
+        <p className="text-[10px] font-semibold flex items-center gap-1.5 pt-2" style={{ color: "var(--muted)" }}>
+          <Lock size={12} /> Cambiar contraseña (déjalo vacío si no quieres cambiarla)
+        </p>
+        <CampoCuenta
+          etiqueta="Contraseña actual"
+          type="password"
+          value={passwordActual}
+          onChange={(e) => setPasswordActual(e.target.value)}
+          placeholder="Tu contraseña de ahora"
+        />
+        <CampoCuenta
+          etiqueta="Contraseña nueva"
+          type="password"
+          value={passwordNueva}
+          onChange={(e) => setPasswordNueva(e.target.value)}
+          placeholder="Mínimo 4 caracteres"
+        />
+      </div>
+
+      {estado.error && (
+        <p className="text-xs flex items-center gap-1.5" style={{ color: "#B14A3A" }}><AlertCircle size={13} /> {estado.error}</p>
+      )}
+      {estado.ok && (
+        <p className="text-xs flex items-center gap-1.5" style={{ color: "var(--primary)" }}><Check size={13} /> {estado.ok}</p>
+      )}
+
+      <button
+        onClick={guardar}
+        disabled={guardando || !nombre.trim() || !telefono.trim()}
+        className="w-full rounded-lg px-3 py-2.5 text-sm font-semibold disabled:opacity-60"
+        style={{ background: "var(--primary)", color: "var(--accentInk)" }}
+      >
+        {guardando ? "Guardando…" : "Guardar cambios"}
+      </button>
+    </div>
+  );
+}
 
 export default function PerfilView() {
   const {
@@ -14,16 +151,12 @@ export default function PerfilView() {
     copiadoCuenta,
     copiarNumeroCuenta,
     horario,
-    negocioNombre,
-    negocioTelefono,
     negocioUbicacion,
     obtenerUbicacionGPS,
     setBancoBeneficiario,
     setBancoNombre,
     setBancoNumeroCuenta,
     setHorario,
-    setNegocioNombre,
-    setNegocioTelefono,
     setSkinId,
     skinId,
     ubicacionCargando,
@@ -35,19 +168,10 @@ export default function PerfilView() {
       <h1 className="font-display text-3xl mb-2">Mi perfil</h1>
       <p className="text-sm mb-6" style={{ color: "var(--muted)" }}>Tus datos y la apariencia de la app.</p>
 
-      <div className="rounded-2xl p-4 mb-6 space-y-3" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
+      <MiCuenta />
+
+      <div className="rounded-2xl p-4 mb-6 space-y-3" style={ESTILO_CAJA}>
         <p className="text-xs font-semibold flex items-center gap-1.5"><Store size={13} /> Datos del negocio</p>
-        <div>
-          <label className="text-[10px] font-semibold block mb-1" style={{ color: "var(--muted)" }}>Nombre del negocio</label>
-          <input value={negocioNombre} onChange={(e) => setNegocioNombre(e.target.value)} placeholder="Ej: Abarrotes La Esquina"
-            className="w-full rounded-lg px-3 py-2.5 text-sm outline-none" style={{ border: "1px solid var(--border)", background: "var(--bg)", color: "var(--ink)" }} />
-        </div>
-        <div>
-          <label className="text-[10px] font-semibold block mb-1" style={{ color: "var(--muted)" }}>WhatsApp que recibirá los pedidos</label>
-          <input value={negocioTelefono} onChange={(e) => setNegocioTelefono(e.target.value)} placeholder="Ej: 573001234567"
-            className="w-full rounded-lg px-3 py-2.5 text-sm outline-none" style={{ border: "1px solid var(--border)", background: "var(--bg)", color: "var(--ink)" }} />
-          <p className="text-[11px] mt-1" style={{ color: "var(--muted)" }}>Cuando un cliente termina su pedido, el mensaje de WhatsApp se envía a este número.</p>
-        </div>
 
         <div>
           <label className="text-[10px] font-semibold block mb-1" style={{ color: "var(--muted)" }}>Ubicación del negocio</label>

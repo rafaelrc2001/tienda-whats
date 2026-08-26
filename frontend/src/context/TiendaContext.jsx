@@ -27,6 +27,7 @@ import {
   utilidadDeItems,
 } from "../lib/pedidos";
 import { productoVacio } from "../lib/productos";
+import { MODO, borrarSesion, guardarSesion, leerSesion } from "../lib/sesion";
 import { SKIN_POR_DEFECTO, skinPorId } from "../config/skins";
 
 const TiendaContext = createContext(null);
@@ -39,6 +40,12 @@ export function useTienda() {
 }
 
 export function TiendaProvider({ children }) {
+  // ---------- acceso ----------
+  // Sin sesión no hay tienda: la aplicación no llama a la API de datos y la
+  // pantalla de entrada es lo único que se muestra.
+  const [sesion, setSesion] = useState(() => leerSesion());
+  const esAdmin = sesion?.modo === MODO.admin;
+
   // ---------- navegación ----------
   const [view, setView] = useState("catalogo");
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -99,13 +106,17 @@ export function TiendaProvider({ children }) {
   const [hidratado, setHidratado] = useState(false);
 
   useEffect(() => {
+    if (!sesion) return undefined;
+
     let vigente = true;
     (async () => {
+      // El histórico de ventas y el mapa de direcciones son del administrador;
+      // en modo cliente ni se piden, porque la API responde 403.
       const [negocio, catalogo, ventas, direcciones] = await Promise.all([
         api.negocio.obtener(),
         api.productos.listar(),
-        api.pedidos.listar(),
-        api.direcciones.obtener(),
+        esAdmin ? api.pedidos.listar() : Promise.resolve(null),
+        esAdmin ? api.direcciones.obtener() : Promise.resolve(null),
       ]);
       if (!vigente) return;
 
@@ -128,7 +139,7 @@ export function TiendaProvider({ children }) {
     return () => {
       vigente = false;
     };
-  }, []);
+  }, [sesion, esAdmin]);
 
   // ---------- persistencia ----------
   // La configuración y el catálogo se guardan enteros con un pequeño retardo: las
@@ -145,23 +156,39 @@ export function TiendaProvider({ children }) {
     [negocioNombre, negocioTelefono, negocioUbicacion, bancoNombre, bancoBeneficiario, bancoNumeroCuenta, skinId, horario]
   );
 
+  // Los tres guardados van contra rutas de administración: en modo cliente la
+  // API los rechazaría con 403, así que ni se intentan.
   useEffect(() => {
-    if (!hidratado) return;
+    if (!hidratado || !esAdmin) return undefined;
     const t = setTimeout(() => api.negocio.guardar(configNegocio), 600);
     return () => clearTimeout(t);
-  }, [hidratado, configNegocio]);
+  }, [hidratado, esAdmin, configNegocio]);
 
   useEffect(() => {
-    if (!hidratado) return;
+    if (!hidratado || !esAdmin) return undefined;
     const t = setTimeout(() => api.productos.reemplazar(productos), 600);
     return () => clearTimeout(t);
-  }, [hidratado, productos]);
+  }, [hidratado, esAdmin, productos]);
 
   useEffect(() => {
-    if (!hidratado) return;
+    if (!hidratado || !esAdmin) return undefined;
     const t = setTimeout(() => api.direcciones.guardar(direccionesClientes), 600);
     return () => clearTimeout(t);
-  }, [hidratado, direccionesClientes]);
+  }, [hidratado, esAdmin, direccionesClientes]);
+
+  // En modo cliente el comprador solo puede tocar SU dirección, así que se lee
+  // suelta en cuanto se identifica y se guarda suelta al enviar el pedido.
+  useEffect(() => {
+    if (!clienteActivo || esAdmin) return undefined;
+    let vigente = true;
+    api.direcciones.obtenerDe(clienteActivo.telefono).then((guardada) => {
+      if (!vigente || !guardada) return;
+      setDireccionesClientes((prev) => ({ ...prev, [digits(clienteActivo.telefono)]: guardada }));
+    });
+    return () => {
+      vigente = false;
+    };
+  }, [clienteActivo, esAdmin]);
 
   // ---------- navegación ----------
   function irA(key) {
@@ -189,7 +216,12 @@ export function TiendaProvider({ children }) {
     setHorarioResuelto(false);
   }
 
-  function cerrarSesion() {
+  /**
+   * Vacía todo lo que pertenece a una tienda concreta. Se usa al entrar en una y
+   * al salir: sin esto, el catálogo o las ventas de la anterior se quedarían a la
+   * vista mientras carga la nueva.
+   */
+  function limpiarDatosTienda() {
     setClienteActivo(null);
     setTelForm("");
     setNombreForm("");
@@ -197,6 +229,91 @@ export function TiendaProvider({ children }) {
     limpiarDatosPedido();
     setPedidoFinal(null);
     setPedidoEnviado(false);
+    setProductos([]);
+    setPedidos([]);
+    setDireccionesClientes({});
+    setNegocioNombre("");
+    setNegocioTelefono("");
+    setNegocioUbicacion(null);
+    setBancoNombre("");
+    setBancoBeneficiario("");
+    setBancoNumeroCuenta("");
+    setSkinId(SKIN_POR_DEFECTO);
+    setHorario(HORARIO_INICIAL);
+    setFileName("");
+    setParseError("");
+  }
+
+  /**
+   * Guarda la sesión y deja la aplicación lista para hidratar la tienda nueva.
+   * El dueño aterriza en Productos, que es donde empieza su trabajo; el cliente,
+   * en la tienda, que es lo único que ve.
+   */
+  function aplicarSesion(nueva) {
+    setHidratado(false);
+    limpiarDatosTienda();
+    guardarSesion(nueva);
+    setSesion(nueva);
+    setDrawerOpen(false);
+    setView(nueva.modo === MODO.admin ? "productos" : "catalogo");
+    return nueva;
+  }
+
+  /** Qué es lo escrito en la pantalla de entrada. Lanza si el servidor no responde. */
+  function resolverAcceso(valor) {
+    return api.acceso.resolver(valor);
+  }
+
+  /** Modo cliente: basta el ID del negocio, no hay token que pedir. */
+  function entrarComoCliente({ idNegocio, nombreTienda }) {
+    return aplicarSesion({ modo: MODO.cliente, idNegocio, nombreTienda });
+  }
+
+  /** Modo administrador. Lanza si la clave falla o la cuenta está suspendida. */
+  async function entrarComoAdmin(telefono, password) {
+    const r = await api.acceso.admin(telefono, password);
+    return aplicarSesion({
+      modo: MODO.admin,
+      idNegocio: r.idNegocio,
+      nombreTienda: r.nombreTienda,
+      token: r.token,
+    });
+  }
+
+  /** Alta de tienda. Entra directo como administrador. Lanza si el alta falla. */
+  async function registrarTienda(datos) {
+    const r = await api.acceso.registrar(datos);
+    return aplicarSesion({
+      modo: MODO.admin,
+      idNegocio: r.idNegocio,
+      nombreTienda: r.nombreTienda,
+      token: r.token,
+    });
+  }
+
+  /**
+   * Cambia los datos de la cuenta desde "Mi perfil".
+   *
+   * El nombre y el teléfono son un solo dato aunque se guarden en dos archivos:
+   * el servidor los refleja en la configuración del negocio y aquí se ponen al
+   * día en memoria, para que el guardado automático no vuelva a escribir los
+   * valores viejos. Lanza si algo falla, para que la pantalla lo enseñe.
+   */
+  async function actualizarCuenta(datos) {
+    const cuenta = await api.cuenta.actualizar(datos);
+    setNegocioNombre(cuenta.nombreTienda);
+    setNegocioTelefono(cuenta.telefono);
+    setSesion((prev) => guardarSesion({ ...prev, nombreTienda: cuenta.nombreTienda }));
+    return cuenta;
+  }
+
+  /** Sale de la tienda y vuelve a la pantalla de entrada. */
+  function cerrarSesion() {
+    if (sesion?.token) api.acceso.salir().catch(() => {});
+    borrarSesion();
+    setSesion(null);
+    setHidratado(false);
+    limpiarDatosTienda();
     setDrawerOpen(false);
     setView("catalogo");
     setSesionMsg("Sesión cerrada.");
@@ -482,10 +599,11 @@ export function TiendaProvider({ children }) {
     api.pedidos.crear(venta);
 
     if (pedidoFinal.direccion) {
-      setDireccionesClientes((prev) => ({
-        ...prev,
-        [digits(pedidoFinal.telefono)]: { direccion: pedidoFinal.direccion, gps: pedidoFinal.direccionGps || null },
-      }));
+      const recordar = { direccion: pedidoFinal.direccion, gps: pedidoFinal.direccionGps || null };
+      setDireccionesClientes((prev) => ({ ...prev, [digits(pedidoFinal.telefono)]: recordar }));
+      // el administrador guarda el mapa entero con el efecto de arriba; el
+      // comprador solo puede escribir la suya
+      if (!esAdmin) api.direcciones.guardarDe(pedidoFinal.telefono, recordar);
     }
 
     setPedidoEnviado(true);
@@ -577,6 +695,9 @@ export function TiendaProvider({ children }) {
   }, [pedidos, clientesDesde, clientesHasta]);
 
   const valor = {
+    // acceso
+    sesion, esAdmin, resolverAcceso, entrarComoCliente, entrarComoAdmin, registrarTienda,
+    actualizarCuenta,
     // navegación
     view, setView, drawerOpen, setDrawerOpen, sesionMsg, irA, cerrarSesion,
     // negocio

@@ -3,18 +3,23 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "API de la tienda: catálogo, pedidos, clientes y configuración del negocio.",
+  "description": "API de la tienda sobre PostgreSQL: catálogo, pedidos, clientes y configuración del negocio.",
   "main": "src/server.js",
   "scripts": {
     "dev": "node --watch src/server.js",
     "start": "node src/server.js",
-    "lint": "eslint src"
+    "lint": "eslint src",
+    "db:schema": "psql -f db/schema.sql",
+    "db:reset": "psql -f db/reset.sql -f db/schema.sql",
+    "db:importar": "node scripts/importar-json.js"
   },
   "dependencies": {
+    "bcrypt": "^6.0.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
-    "morgan": "^1.10.0"
+    "morgan": "^1.10.0",
+    "pg": "^8.23.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",

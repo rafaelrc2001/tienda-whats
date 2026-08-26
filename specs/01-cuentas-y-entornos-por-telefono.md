@@ -210,7 +210,7 @@ Cada paso deja el sistema arrancable con `npm run dev`.
 
 | Riesgo | Mitigación |
 | --- | --- |
-| `POST /acceso/resolver` revela si un teléfono está registrado como dueño. | La respuesta no distingue entre "no registrado" y "registrado pero suspendido", y no devuelve ningún dato de la cuenta salvo el nombre de la tienda cuando lo escrito es un ID de negocio. |
+| `POST /acceso/resolver` revela si un teléfono está registrado como dueño. | Se acepta esa fuga: la respuesta es `duenio` tanto para una cuenta activa como para una suspendida, porque el criterio de aceptación exige que el dueño suspendido llegue a la contraseña y vea un mensaje que lo explique. A cambio, `resolver` no devuelve ningún dato de la cuenta salvo el nombre de la tienda cuando lo escrito es un ID de negocio, y la contraseña se comprueba antes que el estatus para no confirmarle a un desconocido que ese número existe. |
 | Un comprador nuevo escribe su propio teléfono en la etapa 1 y el sistema le ofrece crear una tienda. | El texto del campo dice explícitamente "Teléfono de WhatsApp o ID del negocio", y la respuesta `desconocido` pregunta primero si quiere crear una tienda antes de mostrar el formulario de alta. |
 | El `idNegocio` es adivinable por ser un slug legible, así que un tercero puede entrar en modo cliente a cualquier tienda. | Es aceptado: el modo cliente solo ve el catálogo, que es precisamente lo que la tienda quiere difundir. Nada sensible es accesible sin token. |
 | Un nombre de tienda con caracteres no latinos produce un slug vacío. | El registro rechaza el alta y pide otro nombre; se valida antes de crear la carpeta. |

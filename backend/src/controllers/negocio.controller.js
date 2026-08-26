@@ -3,11 +3,11 @@ import { negocioService } from "../services/negocio.service.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 
 export const negocioController = {
-  obtener: asyncHandler(async (_req, res) => {
-    res.json(await negocioService.obtener());
+  obtener: asyncHandler(async (req, res) => {
+    res.json(await negocioService.obtener(req.tienda.id));
   }),
 
   guardar: asyncHandler(async (req, res) => {
-    res.json(await negocioService.guardar(req.body || {}));
+    res.json(await negocioService.guardar(req.tienda.id, req.body || {}));
   }),
 };

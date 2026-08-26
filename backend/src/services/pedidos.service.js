@@ -36,7 +36,9 @@ function normalizarPedido(entrada) {
     : new Date().toISOString();
 
   return {
-    id: entrada.id ?? Date.now(),
+    // El id llega del frontend como número (`Date.now()`); se guarda como texto
+    // para no depender de eso, igual que ya se comparaba con `String(...)`.
+    id: String(entrada.id ?? Date.now()),
     nombre,
     telefono,
     total: numeroOCero(entrada.total),
@@ -48,24 +50,17 @@ function normalizarPedido(entrada) {
 }
 
 export const pedidosService = {
-  listar: () => pedidosRepository.leer(),
+  listar: (idNegocio) => pedidosRepository.listar(idNegocio),
 
   /**
    * Registra una venta. Ignora en silencio un id repetido: el frontend puede
    * reintentar el envío si se cerró la pestaña de WhatsApp, y esa segunda
-   * llamada no debe duplicar la venta.
+   * llamada no debe duplicar la venta; en ese caso se devuelve la venta que ya
+   * estaba guardada, no la que se acaba de mandar.
    */
-  async crear(entrada) {
+  async crear(idNegocio, entrada) {
     const pedido = normalizarPedido(entrada);
-    let guardado = pedido;
-    await pedidosRepository.actualizar((lista) => {
-      const existente = lista.find((p) => String(p.id) === String(pedido.id));
-      if (existente) {
-        guardado = existente;
-        return lista;
-      }
-      return [...lista, pedido];
-    });
-    return guardado;
+    const guardado = await pedidosRepository.crear(idNegocio, pedido);
+    return guardado ?? (await pedidosRepository.buscar(idNegocio, pedido.id));
   },
 };

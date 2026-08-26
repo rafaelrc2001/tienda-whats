@@ -28,6 +28,7 @@ export {
   Flame,
   ImagePlus,
   Landmark,
+  Lock,
   LogOut,
   MapPin,
   Menu,

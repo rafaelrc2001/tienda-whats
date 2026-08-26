@@ -2,17 +2,24 @@
  * Menú lateral "Mi Cuenta" con la navegación entre secciones.
  */
 import { useTienda } from "../../context/TiendaContext";
-import { MENU_ITEMS } from "../../config/menu";
+import { menuPara } from "../../config/menu";
 import { LogOut, X } from "../../icons";
 
 export default function DrawerMenu() {
   const {
     cerrarSesion,
     drawerOpen,
+    esAdmin,
     irA,
+    sesion,
     setDrawerOpen,
     view,
   } = useTienda();
+
+  // Sin sesión no hay tienda que recorrer: la pantalla de entrada es todo.
+  if (!sesion) return null;
+
+  const secciones = menuPara(esAdmin);
 
   return (
     <>
@@ -26,11 +33,11 @@ export default function DrawerMenu() {
         style={{ background: "var(--headerBg)", color: "var(--headerInk)", transform: drawerOpen ? "translateX(0)" : "translateX(-105%)" }}
       >
         <div className="px-5 pt-6 pb-4 flex items-center justify-between">
-          <span className="font-display text-3xl font-semibold">Mi Cuenta</span>
+          <span className="font-display text-3xl font-semibold">{esAdmin ? "Mi Cuenta" : "Tienda"}</span>
           <button onClick={() => setDrawerOpen(false)} className="p-1" aria-label="Cerrar menú"><X size={20} /></button>
         </div>
         <nav className="flex-1">
-          {MENU_ITEMS.map((item) => {
+          {secciones.map((item) => {
             const Icon = item.icon;
             const activo = view === item.key;
             return (

@@ -53,7 +53,14 @@ function estiloTema(theme) {
 }
 
 export default function App() {
-  const { theme, view, clienteActivo, sesionMsg } = useTienda();
+  const { theme, view, clienteActivo, sesionMsg, esAdmin } = useTienda();
+
+  /**
+   * Las secciones del dueño no se renderizan en modo cliente ni aunque el `view`
+   * llegue forzado. Es el espejo del `exigirAdmin` del backend: aquí se evita la
+   * pantalla, allí se corta el dato.
+   */
+  const verSiEsAdmin = (key, pantalla) => (esAdmin && view === key ? pantalla : null);
 
   return (
     <div style={estiloTema(theme)}>
@@ -67,13 +74,13 @@ export default function App() {
           </div>
         )}
 
-        {view === "productos" && <ProductosView />}
         {view === "catalogo" && (clienteActivo ? <CatalogoView /> : <IdentificacionView />)}
         {view === "checkout" && <CheckoutView />}
         {view === "confirmacion" && <ConfirmacionView />}
-        {view === "clientes" && <ClientesView />}
-        {view === "perfil" && <PerfilView />}
-        {view === "finanzas" && <FinanzasView />}
+        {verSiEsAdmin("productos", <ProductosView />)}
+        {verSiEsAdmin("clientes", <ClientesView />)}
+        {verSiEsAdmin("perfil", <PerfilView />)}
+        {verSiEsAdmin("finanzas", <FinanzasView />)}
       </main>
 
       <BarraCarrito />

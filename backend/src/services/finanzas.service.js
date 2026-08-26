@@ -4,6 +4,11 @@
  * Hoy el frontend calcula esto en memoria; tener el mismo cálculo en el servidor
  * permite consultarlo desde otro lado (un reporte, una app de escritorio) sin
  * descargar el histórico completo.
+ *
+ * Los cortes por día, semana y mes siguen hechos en JavaScript a propósito: usan
+ * la hora local del proceso, y moverlos a SQL obligaría a fijar una zona horaria
+ * en la base, que es una decisión distinta. De la base solo vienen las cabeceras
+ * —fecha, total y utilidad—, sin los renglones, que aquí no se miran.
  */
 import { pedidosRepository } from "../repositories/pedidos.repository.js";
 import { digits } from "../utils/validacion.js";
@@ -26,10 +31,11 @@ function enRango(pedido, desde, hasta) {
 
 export const finanzasService = {
   /**
+   * @param {string} idNegocio tienda de la que se calcula el resumen
    * @param {{desde?: string, hasta?: string}} rango fechas YYYY-MM-DD, ambas opcionales
    */
-  async resumen({ desde, hasta } = {}) {
-    const pedidos = await pedidosRepository.leer();
+  async resumen(idNegocio, { desde, hasta } = {}) {
+    const pedidos = await pedidosRepository.listarCabeceras(idNegocio);
     const limiteDesde = desde ? new Date(`${desde}T00:00:00`) : null;
     const limiteHasta = hasta ? new Date(`${hasta}T23:59:59`) : null;
     const filtrados = pedidos.filter((p) => enRango(p, limiteDesde, limiteHasta));

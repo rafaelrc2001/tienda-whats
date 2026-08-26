@@ -14,6 +14,14 @@ export class AppError extends Error {
     return new AppError(mensaje, 400, detalles);
   }
 
+  static noAutorizado(mensaje = "No autorizado") {
+    return new AppError(mensaje, 401);
+  }
+
+  static prohibido(mensaje = "Acceso denegado") {
+    return new AppError(mensaje, 403);
+  }
+
   static noEncontrado(mensaje = "Recurso no encontrado") {
     return new AppError(mensaje, 404);
   }

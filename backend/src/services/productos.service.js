@@ -14,12 +14,24 @@ const texto = (v) => String(v ?? "").trim();
 let contador = 0;
 const nuevoId = () => `p_${Date.now()}_${(contador++).toString(36)}`;
 
-function normalizarProducto(p) {
+/**
+ * Deja una fila del catálogo con la forma que espera la base.
+ *
+ * `usados` acumula los ids ya vistos en este mismo envío: el id es único por
+ * tienda, así que un Excel pegado dos veces o una fila duplicada a mano no
+ * pueden colarse con el id repetido. Al que choca se le da uno nuevo.
+ */
+function normalizarProducto(p, usados) {
   if (typeof p !== "object" || p === null) {
     throw AppError.peticionInvalida("Cada producto debe ser un objeto.");
   }
+
+  let id = texto(p.id) || nuevoId();
+  while (usados.has(id)) id = nuevoId();
+  usados.add(id);
+
   return {
-    id: texto(p.id) || nuevoId(),
+    id,
     categoria: texto(p.categoria) || "Otros",
     producto: texto(p.producto),
     marca: texto(p.marca),
@@ -32,11 +44,15 @@ function normalizarProducto(p) {
 }
 
 export const productosService = {
-  listar: () => productosRepository.leer(),
+  listar: (idNegocio) => productosRepository.listar(idNegocio),
 
   /** Reemplaza el catálogo completo (es como lo edita la pantalla de Productos). */
-  reemplazar(entrada) {
+  reemplazar(idNegocio, entrada) {
     const lista = exigirArreglo(entrada, "productos");
-    return productosRepository.escribir(lista.map(normalizarProducto));
+    const usados = new Set();
+    return productosRepository.reemplazar(
+      idNegocio,
+      lista.map((p) => normalizarProducto(p, usados))
+    );
   },
 };

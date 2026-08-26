@@ -1,7 +1,7 @@
 /**
  * Configuración del negocio.
- * Normaliza lo que llega del cliente para que el JSON en disco siempre tenga la
- * misma forma, sin campos sueltos ni tipos inesperados.
+ * Normaliza lo que llega del cliente antes de guardarlo: la tabla tiene una
+ * columna por dato y no admite campos sueltos ni tipos inesperados.
  */
 import { NEGOCIO_POR_DEFECTO, negocioRepository } from "../repositories/negocio.repository.js";
 import { esObjeto, numeroOCero } from "../utils/validacion.js";
@@ -44,8 +44,8 @@ function normalizar(entrada) {
 }
 
 export const negocioService = {
-  obtener: () => negocioRepository.leer(),
+  obtener: (idNegocio) => negocioRepository.obtener(idNegocio),
 
   /** Reemplaza la configuración completa y devuelve la versión ya normalizada. */
-  guardar: (entrada) => negocioRepository.escribir(normalizar(entrada)),
+  guardar: (idNegocio, entrada) => negocioRepository.guardar(idNegocio, normalizar(entrada)),
 };
