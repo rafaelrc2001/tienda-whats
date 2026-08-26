@@ -75,5 +75,7 @@ coverage/
 .cache/
 
 # ---------- datos locales del backend (JSON que hace de base de datos) ----------
+# Cubre tanto el nivel raíz como los JSON por tienda en subcarpetas.
 backend/data/*.json
+backend/data/**/*.json
 !backend/data/.gitkeep
