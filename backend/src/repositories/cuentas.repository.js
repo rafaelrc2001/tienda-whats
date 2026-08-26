@@ -9,7 +9,7 @@
  * o se crean las dos filas o no se crea ninguna, y las tablas de productos,
  * pedidos y direcciones simplemente arrancan vacías para esa tienda.
  */
-import { consultar, enTransaccion, primeraFila } from "../db/pool.js";
+import { enTransaccion, primeraFila } from "../db/pool.js";
 
 /** Columnas de la cuenta, en el orden en que las mapea `aCuenta`. */
 const CAMPOS = "id_negocio, telefono, password_hash, nombre_tienda, estatus, creada_en";
@@ -42,20 +42,6 @@ export const cuentasRepository = {
     return aCuenta(fila);
   },
 
-  /**
-   * Ids de negocio que ya empiezan por este slug.
-   *
-   * Es lo que necesita `generarIdNegocio` para elegir el sufijo libre: si ya
-   * existe "abarrotes-maria", la siguiente será "abarrotes-maria-2". Se filtra
-   * por prefijo en vez de traerse la tabla entera.
-   */
-  async idsNegocioConPrefijo(base) {
-    const { rows } = await consultar(
-      "SELECT id_negocio FROM cuentas WHERE id_negocio = $1 OR id_negocio LIKE $2",
-      [base, `${base}-%`]
-    );
-    return rows.map((f) => f.id_negocio);
-  },
 
   /**
    * Da de alta la cuenta y, con ella, la configuración inicial del negocio.

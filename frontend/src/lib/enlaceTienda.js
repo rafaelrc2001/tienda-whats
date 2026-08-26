@@ -1,7 +1,7 @@
 /**
  * El enlace público de cada tienda.
  *
- * Cada negocio se abre con su propio link: `https://mi-tienda.com/abarrote-sjuan`.
+ * Cada negocio se abre con su propio link: `https://mi-tienda.com/482913`.
  * El primer tramo de la ruta es el `idNegocio`, que es justo lo que el comprador
  * tenía que teclear a mano antes.
  *
@@ -10,7 +10,11 @@
  * aplicación y es aquí donde se traduce a una sesión de cliente.
  */
 
-/** Un id de negocio es un slug: minúsculas, dígitos y guiones. */
+/**
+ * Un id de negocio es un número de seis dígitos. El patrón sigue admitiendo
+ * letras y guiones porque las tiendas dadas de alta antes de este cambio
+ * conservan su slug y sus enlaces tienen que seguir abriendo.
+ */
 const SLUG = /^[a-z0-9-]+$/;
 
 /**

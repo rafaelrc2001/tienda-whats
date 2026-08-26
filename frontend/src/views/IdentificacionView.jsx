@@ -123,7 +123,7 @@ function Acceso() {
           onChange={(e) => escribir(e.target.value)}
           onBlur={resolver}
           onKeyDown={(e) => alPulsarEnter(e, () => e.currentTarget.blur())}
-          placeholder="Ej: mi-tienda o 573001234567"
+          placeholder="Ej: 482913 o 573001234567"
           autoFocus
         />
 

@@ -3,9 +3,11 @@
  *
  * Una cuenta y su tienda nacen juntas: registrarse inserta la fila en `cuentas`
  * y la configuración inicial en `negocios`, ambas en la misma transacción. El
- * teléfono de WhatsApp hace de nombre de usuario y el `idNegocio` —un slug del
- * nombre de la tienda— es lo que los clientes escriben para entrar.
+ * teléfono de WhatsApp hace de nombre de usuario y el `idNegocio` —un número de
+ * seis dígitos— es lo que los clientes escriben para entrar.
  */
+import crypto from "node:crypto";
+
 import bcrypt from "bcrypt";
 
 import { esDuplicado } from "../db/pool.js";
@@ -22,63 +24,43 @@ const TELEFONO_MINIMO = 7;
 /** Longitud mínima de contraseña. Corta, pero evita las de un solo carácter. */
 const PASSWORD_MINIMA = 4;
 
-/** Marcas diacríticas que deja sueltas `normalize("NFD")`. */
-const DIACRITICOS = /[̀-ͯ]/g;
-
 /**
- * Cuántas veces se reintenta el alta si otro registro simultáneo se queda con
- * el slug que habíamos elegido. Con dos ya sería mala suerte; cinco es de sobra.
- */
-const INTENTOS_SLUG = 5;
-
-/**
- * Slugs que no se pueden dar a una tienda.
+ * Cuántos dígitos tiene el ID de una tienda.
  *
- * El id del negocio es también el primer tramo de su enlace público
- * (`/abarrote-sjuan`), así que un id que choque con una ruta real del servidor
- * daría una tienda inalcanzable. Se tratan igual que un slug ocupado: la tienda
- * se queda con `api-2`, que sí funciona.
+ * Seis, y no más, porque el ID está pensado para dictarse por teléfono. Y seis,
+ * y no siete, por una razón que sostiene toda la pantalla de entrada: ahí hay un
+ * solo campo, donde se escribe o el teléfono del dueño o el ID de la tienda, y
+ * `TELEFONO_MINIMO` es 7. Mientras un ID sea más corto que cualquier teléfono
+ * válido, los dos nunca se pueden confundir. Si se toca uno de los dos números,
+ * hay que volver a mirar el otro.
  */
-const SLUGS_RESERVADOS = new Set(["api", "assets", "static", "index", "favicon", "robots"]);
+const DIGITOS_ID = 6;
+
+/** 100000 y 999999: el rango de seis dígitos, sin ceros a la izquierda. */
+const ID_MINIMO = 10 ** (DIGITOS_ID - 1);
+const ID_MAXIMO = 10 ** DIGITOS_ID - 1;
+
+/**
+ * Cuántas veces se reintenta el alta si el número sorteado ya estaba dado. Con
+ * 900 000 combinaciones, dos intentos ya serían mala suerte; cinco es de sobra.
+ */
+const INTENTOS_ID = 5;
 
 export const ESTATUS = { activo: "activo", suspendido: "suspendido" };
 
 /**
- * Parte del slug que sale del nombre, antes de resolver duplicados:
- * "Abarrotes María" -> "abarrotes-maria".
- */
-export function slugBase(nombre) {
-  const base = String(nombre || "")
-    .normalize("NFD")
-    .replace(DIACRITICOS, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-
-  if (!base) {
-    throw AppError.peticionInvalida(
-      "El nombre de la tienda debe tener al menos una letra o un número."
-    );
-  }
-  return base;
-}
-
-/**
- * Convierte el nombre de la tienda en un identificador público libre.
- * Si el slug ya está ocupado se prueba con `-2`, `-3`, y así sucesivamente.
+ * Un identificador público para una tienda nueva.
  *
- * @param {string} nombre       nombre de la tienda tal como lo escribió el dueño
- * @param {string[]} existentes ids ya en uso que empiezan por el mismo slug
+ * Se sortea en vez de ir en orden a propósito: un contador diría cuántas tiendas
+ * hay y dejaría asomarse a la de al lado probando el número siguiente.
+ *
+ * No comprueba si está libre, y no es un olvido: entre esa comprobación y el
+ * INSERT cabe otra alta. De la unicidad responde la clave primaria de `cuentas`,
+ * que es el único sitio donde la respuesta no se queda vieja. Quien llama
+ * reintenta cuando el INSERT choca.
  */
-export function generarIdNegocio(nombre, existentes = []) {
-  const base = slugBase(nombre);
-
-  const usados = new Set([...existentes, ...SLUGS_RESERVADOS]);
-  if (!usados.has(base)) return base;
-
-  let sufijo = 2;
-  while (usados.has(`${base}-${sufijo}`)) sufijo += 1;
-  return `${base}-${sufijo}`;
+export function generarIdNegocio() {
+  return String(crypto.randomInt(ID_MINIMO, ID_MAXIMO + 1));
 }
 
 /** Lo que se puede devolver de una cuenta sin filtrar el hash de la contraseña. */
@@ -126,7 +108,7 @@ export const cuentasService = {
   /**
    * Da de alta una cuenta y su tienda.
    *
-   * La unicidad del teléfono y del slug la garantizan los índices UNIQUE de la
+   * La unicidad del teléfono y del ID la garantizan las restricciones de la
    * base, no una comprobación previa: entre el `SELECT` y el `INSERT` cabe otro
    * registro simultáneo, y ese hueco es justo lo que la restricción cierra.
    */
@@ -135,12 +117,10 @@ export const cuentasService = {
     const clave = exigirPassword(password);
     const nombre = exigirTexto(nombreTienda, "nombreTienda");
 
-    const base = slugBase(nombre);
     const passwordHash = await bcrypt.hash(clave, COSTE_BCRYPT);
 
-    for (let intento = 0; intento < INTENTOS_SLUG; intento += 1) {
-      const ocupados = await cuentasRepository.idsNegocioConPrefijo(base);
-      const idNegocio = generarIdNegocio(nombre, ocupados);
+    for (let intento = 0; intento < INTENTOS_ID; intento += 1) {
+      const idNegocio = generarIdNegocio();
 
       try {
         return await cuentasRepository.crear({
@@ -153,14 +133,13 @@ export const cuentasService = {
         if (esDuplicado(err, "cuentas_telefono_key")) {
           throw AppError.peticionInvalida("Ese teléfono ya tiene una tienda registrada.");
         }
-        // Otro alta se quedó con el slug entre nuestro SELECT y nuestro INSERT:
-        // se vuelve a mirar cuáles están libres y se prueba con el siguiente.
+        // El número sorteado ya estaba dado: se sortea otro y se vuelve a probar.
         if (!esDuplicado(err, "cuentas_pkey")) throw err;
       }
     }
 
     throw AppError.peticionInvalida(
-      "No se pudo reservar un ID para la tienda. Prueba con otro nombre."
+      "No se pudo reservar un ID para la tienda. Vuelve a intentarlo."
     );
   },
 

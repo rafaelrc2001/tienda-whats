@@ -106,7 +106,7 @@ function MiCuenta() {
           </button>
         </div>
         <p className="text-[11px] mt-1" style={{ color: "var(--muted)" }}>
-          El nombre corto de tu tienda, por si prefieres dictarlo. No cambia aunque le cambies el nombre.
+          El número de tu tienda, para dictarlo por teléfono. No cambia nunca, ni aunque le cambies el nombre.
         </p>
       </div>
 

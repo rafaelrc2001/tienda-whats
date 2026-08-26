@@ -12,7 +12,7 @@
 --
 --  Dos ideas que vienen del diseño anterior y se conservan:
 --
---  - El `id_negocio` (un slug: "abarrotes-maria") sigue siendo la llave
+--  - El `id_negocio` (un número: "482913") sigue siendo la llave
 --    pública de la tienda. Antes era el nombre de una carpeta; aquí es la
 --    clave foránea que aísla los datos de un negocio de los de otro.
 --  - Cuenta y negocio son dos cosas distintas: la cuenta guarda el acceso
@@ -41,7 +41,7 @@ CREATE TABLE IF NOT EXISTS cuentas (
 );
 
 COMMENT ON TABLE  cuentas IS 'Dueños de tienda. Una cuenta = una tienda.';
-COMMENT ON COLUMN cuentas.id_negocio IS 'Slug del nombre de la tienda; es lo que el cliente escribe para entrar.';
+COMMENT ON COLUMN cuentas.id_negocio IS 'Número público de la tienda; es lo que el cliente escribe para entrar. Las tiendas anteriores a este cambio conservan un slug.';
 
 -- ---------------------------------------------------------------------
 -- Configuración del negocio
