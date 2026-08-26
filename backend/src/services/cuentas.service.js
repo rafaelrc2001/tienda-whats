@@ -31,6 +31,16 @@ const DIACRITICOS = /[̀-ͯ]/g;
  */
 const INTENTOS_SLUG = 5;
 
+/**
+ * Slugs que no se pueden dar a una tienda.
+ *
+ * El id del negocio es también el primer tramo de su enlace público
+ * (`/abarrote-sjuan`), así que un id que choque con una ruta real del servidor
+ * daría una tienda inalcanzable. Se tratan igual que un slug ocupado: la tienda
+ * se queda con `api-2`, que sí funciona.
+ */
+const SLUGS_RESERVADOS = new Set(["api", "assets", "static", "index", "favicon", "robots"]);
+
 export const ESTATUS = { activo: "activo", suspendido: "suspendido" };
 
 /**
@@ -63,7 +73,7 @@ export function slugBase(nombre) {
 export function generarIdNegocio(nombre, existentes = []) {
   const base = slugBase(nombre);
 
-  const usados = new Set(existentes);
+  const usados = new Set([...existentes, ...SLUGS_RESERVADOS]);
   if (!usados.has(base)) return base;
 
   let sufijo = 2;

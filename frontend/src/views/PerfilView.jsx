@@ -31,7 +31,7 @@ function CampoCuenta({ etiqueta, ayuda, ...props }) {
  * negocio, en cambio, no se toca nunca — es lo que sus clientes tienen apuntado.
  */
 function MiCuenta() {
-  const { actualizarCuenta, negocioNombre, negocioTelefono, sesion } = useTienda();
+  const { actualizarCuenta, negocioNombre, negocioTelefono, sesion, enlaceTienda } = useTienda();
 
   const [nombre, setNombre] = useState(negocioNombre);
   const [telefono, setTelefono] = useState(negocioTelefono);
@@ -40,6 +40,7 @@ function MiCuenta() {
   const [estado, setEstado] = useState({ error: "", ok: "" });
   const [guardando, setGuardando] = useState(false);
   const [copiado, setCopiado] = useState(false);
+  const [copiadoEnlace, setCopiadoEnlace] = useState(false);
 
   // los datos llegan con la hidratación, después del primer render
   useEffect(() => setNombre(negocioNombre), [negocioNombre]);
@@ -49,6 +50,13 @@ function MiCuenta() {
     copiarTexto(sesion.idNegocio).then(() => {
       setCopiado(true);
       setTimeout(() => setCopiado(false), 2000);
+    });
+  }
+
+  function copiarEnlace() {
+    copiarTexto(enlaceTienda).then(() => {
+      setCopiadoEnlace(true);
+      setTimeout(() => setCopiadoEnlace(false), 2000);
     });
   }
 
@@ -77,6 +85,19 @@ function MiCuenta() {
       <p className="text-xs font-semibold flex items-center gap-1.5"><User size={13} /> Mi cuenta</p>
 
       <div>
+        <label className="text-[10px] font-semibold block mb-1" style={{ color: "var(--muted)" }}>Enlace de tu tienda</label>
+        <div className="rounded-lg px-3 py-2.5 flex items-center justify-between gap-2" style={ESTILO_CAMPO}>
+          <span className="text-sm font-semibold truncate">{enlaceTienda}</span>
+          <button onClick={copiarEnlace} className="text-[11px] font-semibold flex items-center gap-1 flex-shrink-0" style={{ color: "var(--primary)" }}>
+            {copiadoEnlace ? <><Check size={13} /> Copiado</> : <><Copy size={13} /> Copiar</>}
+          </button>
+        </div>
+        <p className="text-[11px] mt-1" style={{ color: "var(--muted)" }}>
+          Mándaselo a tus clientes por WhatsApp: al abrirlo entran directo a tu tienda, sin escribir nada.
+        </p>
+      </div>
+
+      <div>
         <label className="text-[10px] font-semibold block mb-1" style={{ color: "var(--muted)" }}>ID del negocio</label>
         <div className="rounded-lg px-3 py-2.5 flex items-center justify-between gap-2" style={ESTILO_CAMPO}>
           <span className="text-sm font-semibold truncate">{sesion.idNegocio}</span>
@@ -85,7 +106,7 @@ function MiCuenta() {
           </button>
         </div>
         <p className="text-[11px] mt-1" style={{ color: "var(--muted)" }}>
-          Es lo que tus clientes escriben para entrar a tu tienda. No cambia aunque le cambies el nombre.
+          El nombre corto de tu tienda, por si prefieres dictarlo. No cambia aunque le cambies el nombre.
         </p>
       </div>
 

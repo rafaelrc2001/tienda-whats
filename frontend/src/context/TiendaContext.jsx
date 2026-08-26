@@ -14,6 +14,7 @@ import { createContext, useContext, useEffect, useMemo, useRef, useState } from 
 
 import { api } from "../lib/api";
 import { copiarTexto } from "../lib/clipboard";
+import { enlaceDeTienda, fijarUrlDeTienda, slugDeUrl } from "../lib/enlaceTienda";
 import { leerProductosDeExcel } from "../lib/excel";
 import { filtrarPorRango, inicioSemana } from "../lib/fechas";
 import { digits, hoyISO } from "../lib/format";
@@ -45,6 +46,14 @@ export function TiendaProvider({ children }) {
   // pantalla de entrada es lo único que se muestra.
   const [sesion, setSesion] = useState(() => leerSesion());
   const esAdmin = sesion?.modo === MODO.admin;
+
+  // La URL puede nombrar la tienda (`/abarrote-sjuan`). Mientras se comprueba
+  // contra el servidor no se enseña la pantalla de entrada: el comprador que
+  // abre el enlace no tiene por qué ver un formulario que no va a usar.
+  const [entrandoPorEnlace, setEntrandoPorEnlace] = useState(() => slugDeUrl() !== null);
+
+  /** El enlace que el dueño reparte. Vacío mientras no hay tienda. */
+  const enlaceTienda = enlaceDeTienda(sesion?.idNegocio);
 
   // ---------- navegación ----------
   const [view, setView] = useState("catalogo");
@@ -254,6 +263,7 @@ export function TiendaProvider({ children }) {
     limpiarDatosTienda();
     guardarSesion(nueva);
     setSesion(nueva);
+    fijarUrlDeTienda(nueva.idNegocio);
     setDrawerOpen(false);
     setView(nueva.modo === MODO.admin ? "productos" : "catalogo");
     return nueva;
@@ -268,6 +278,49 @@ export function TiendaProvider({ children }) {
   function entrarComoCliente({ idNegocio, nombreTienda }) {
     return aplicarSesion({ modo: MODO.cliente, idNegocio, nombreTienda });
   }
+
+  /**
+   * Entrada por enlace: `/abarrote-sjuan` abre esa tienda en modo cliente.
+   *
+   * El enlace manda sobre la sesión guardada, porque quien recibe el link de una
+   * tienda quiere ver esa y no la última que visitó. La única excepción es que
+   * la sesión ya sea de la misma tienda: entonces se respeta tal cual, y así el
+   * dueño que abre su propio enlace sigue siendo administrador.
+   *
+   * Solo corre una vez, al arrancar. Después la URL la lleva `aplicarSesion`.
+   */
+  const enlaceLeido = useRef(false);
+
+  useEffect(() => {
+    if (enlaceLeido.current) return undefined;
+    enlaceLeido.current = true;
+
+    const slug = slugDeUrl();
+    if (!slug) return undefined;
+
+    if (leerSesion()?.idNegocio === slug) {
+      setEntrandoPorEnlace(false);
+      return undefined;
+    }
+
+    let vigente = true;
+    api.acceso
+      .resolver(slug)
+      .then((r) => {
+        if (!vigente) return;
+        if (r?.tipo === "negocio") entrarComoCliente(r);
+        // El enlace nombra algo que no es una tienda abierta: se limpia la URL y
+        // se cae en la pantalla de entrada de siempre.
+        else fijarUrlDeTienda(null);
+      })
+      .catch(() => vigente && fijarUrlDeTienda(null))
+      .finally(() => vigente && setEntrandoPorEnlace(false));
+
+    return () => {
+      vigente = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   /** Modo administrador. Lanza si la clave falla o la cuenta está suspendida. */
   async function entrarComoAdmin(telefono, password) {
@@ -312,6 +365,7 @@ export function TiendaProvider({ children }) {
     if (sesion?.token) api.acceso.salir().catch(() => {});
     borrarSesion();
     setSesion(null);
+    fijarUrlDeTienda(null);
     setHidratado(false);
     limpiarDatosTienda();
     setDrawerOpen(false);
@@ -697,7 +751,7 @@ export function TiendaProvider({ children }) {
   const valor = {
     // acceso
     sesion, esAdmin, resolverAcceso, entrarComoCliente, entrarComoAdmin, registrarTienda,
-    actualizarCuenta,
+    actualizarCuenta, enlaceTienda, entrandoPorEnlace,
     // navegación
     view, setView, drawerOpen, setDrawerOpen, sesionMsg, irA, cerrarSesion,
     // negocio

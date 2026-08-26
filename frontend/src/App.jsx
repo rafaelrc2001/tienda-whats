@@ -52,8 +52,21 @@ function estiloTema(theme) {
   };
 }
 
+/**
+ * Espera de la entrada por enlace. Se enseña en lugar de la pantalla de acceso
+ * mientras se comprueba la tienda que nombra la URL: quien abre el link de una
+ * tienda no debe ver de refilón un formulario que no va a usar.
+ */
+function AbriendoTienda() {
+  return (
+    <p className="text-sm text-center py-12" style={{ color: "var(--muted)" }}>
+      Abriendo la tienda...
+    </p>
+  );
+}
+
 export default function App() {
-  const { theme, view, clienteActivo, sesionMsg, esAdmin } = useTienda();
+  const { theme, view, clienteActivo, sesionMsg, esAdmin, entrandoPorEnlace } = useTienda();
 
   /**
    * Las secciones del dueño no se renderizan en modo cliente ni aunque el `view`
@@ -74,7 +87,8 @@ export default function App() {
           </div>
         )}
 
-        {view === "catalogo" && (clienteActivo ? <CatalogoView /> : <IdentificacionView />)}
+        {view === "catalogo" &&
+          (entrandoPorEnlace ? <AbriendoTienda /> : clienteActivo ? <CatalogoView /> : <IdentificacionView />)}
         {view === "checkout" && <CheckoutView />}
         {view === "confirmacion" && <ConfirmacionView />}
         {verSiEsAdmin("productos", <ProductosView />)}
