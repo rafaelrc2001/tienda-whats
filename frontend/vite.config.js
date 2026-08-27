@@ -9,6 +9,9 @@ export default defineConfig(({ mode }) => {
     plugins: [react()],
     server: {
       port: Number(env.PORT_FRONTEND) || 5173,
+      // Escucha en todas las interfaces para poder abrir la app desde el celular
+      // en la misma red wifi, no solo desde localhost.
+      host: true,
       // En desarrollo el frontend habla con /api y Vite lo reenvía al backend,
       // así no hace falta CORS ni tocar VITE_API_URL.
       proxy: {
