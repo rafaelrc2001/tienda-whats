@@ -49,10 +49,12 @@ function configurarBaseDeDatos() {
   };
 }
 
+const esProduccion = process.env.NODE_ENV === "production";
+
 export const config = {
   puerto: numeroO(process.env.PORT, 4000),
   entorno: process.env.NODE_ENV || "development",
-  esProduccion: process.env.NODE_ENV === "production",
+  esProduccion,
 
   /** Orígenes autorizados. Vacío = se permite cualquiera (útil en desarrollo). */
   corsOrigin: (process.env.CORS_ORIGIN || "")
@@ -62,6 +64,21 @@ export const config = {
 
   /** Conexión a PostgreSQL, que es donde vive todo el estado de la aplicación. */
   db: configurarBaseDeDatos(),
+
+  /**
+   * Alta por código de activación.
+   *
+   * El código se lo manda n8n al dueño por WhatsApp. Mientras esa automatización
+   * no esté conectada, `codigoFijo` deja uno siempre igual para poder probar el
+   * flujo entero sin recibir ningún mensaje: en desarrollo vale 123 si nadie
+   * dice otra cosa; en producción, o se pone a mano o se sortea uno de verdad.
+   */
+  activacion: {
+    codigoFijo: process.env.ACTIVACION_CODIGO_FIJO ?? (esProduccion ? "" : "123"),
+    minutosVigencia: numeroO(process.env.ACTIVACION_MINUTOS, 15),
+    /** Webhook de n8n que manda el código. Vacío = se simula y queda en el log. */
+    urlN8n: process.env.N8N_URL_ACTIVACION || "",
+  },
 
   /** Build del frontend, servido en producción desde el mismo puerto. */
   staticDir: path.resolve(RAIZ, process.env.STATIC_DIR || "../frontend/dist"),

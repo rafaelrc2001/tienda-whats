@@ -18,6 +18,12 @@ export const cuentasRouter = Router();
 
 cuentasRouter.post("/", accesoController.registrar);
 
+// Alta en dos pasos, para quien llega sin cuenta: primero se pide el código al
+// WhatsApp y después se canjea. Van aquí, y no en /acceso, porque las dos son
+// parte de crear la cuenta.
+cuentasRouter.post("/codigo", accesoController.solicitarCodigo);
+cuentasRouter.post("/activar", accesoController.activar);
+
 // Esta sí necesita saber de qué tienda hablamos, así que resuelve la tienda a
 // mano: el router de cuentas se monta antes del middleware general.
 cuentasRouter.put("/mi-cuenta", resolverTienda, exigirAdmin, accesoController.actualizarMiCuenta);

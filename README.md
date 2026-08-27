@@ -42,9 +42,34 @@ npm run dev
 ## Cuentas y entornos
 
 Cada tienda es un entorno aislado. El dueño crea su cuenta con su número de
-WhatsApp, que hace de nombre de usuario, y del nombre de la tienda sale un
-`idNegocio` —un slug como `abarrotes-maria`— que **nunca cambia**, aunque
-después renombre el negocio.
+WhatsApp, que hace de nombre de usuario, y al darse de alta se le sortea un
+`idNegocio` —seis dígitos, como `482913`— que **nunca cambia**, aunque después
+renombre el negocio. Ese número es su enlace (`https://…/482913`) y lo que sus
+clientes escriben para entrar.
+
+### Alta con código de activación
+
+Quien todavía no tiene cuenta escribe por WhatsApp al número de altas, pide un
+código y con ese código quedan hechas su cuenta y su tienda:
+
+1. `POST /api/cuentas/codigo` con el teléfono. El servidor genera el código y se
+   lo pasa a **n8n**, que es quien manda el WhatsApp.
+2. `POST /api/cuentas/activar` con el teléfono y el código. Crea la cuenta, la
+   tienda y devuelve la sesión: entra directo, sin volver a pedir nada.
+
+La contraseña queda siendo el propio código, y la tienda nace como "Mi negocio";
+las dos cosas se cambian después desde **Mi perfil**.
+
+Los códigos pendientes viven en memoria del proceso, caducan a los quince
+minutos y se invalidan a los cinco intentos fallidos. Reiniciar la API los
+olvida, que es justo lo que se espera de un código de un solo uso.
+
+Mientras la automatización de n8n no esté conectada, `ACTIVACION_CODIGO_FIJO`
+deja siempre el mismo código —**123** en desarrollo, aunque no se configure
+nada— y el envío se simula escribiéndolo en el log del servidor. Fuera de
+producción la respuesta lo incluye además como `codigoDePrueba`, para poder
+recorrer el alta entera sin recibir ningún mensaje. En producción hay que
+apuntar `N8N_URL_ACTIVACION` al webhook y dejar el código fijo vacío.
 
 Hay dos formas de entrar:
 
@@ -114,7 +139,9 @@ Estas no llevan `X-Negocio`: son las que averiguan cuál es la tienda.
 | POST | `/api/acceso/resolver` | Dice si lo escrito es `duenio`, `negocio` o `desconocido`. |
 | POST | `/api/acceso/admin` | Teléfono + contraseña. Devuelve token. |
 | POST | `/api/acceso/salir` | Invalida el token. |
-| POST | `/api/cuentas` | Alta de tienda. Devuelve token. |
+| POST | `/api/cuentas` | Alta de tienda con contraseña elegida. Devuelve token. |
+| POST | `/api/cuentas/codigo` | Pide a n8n que mande el código de activación. |
+| POST | `/api/cuentas/activar` | Canjea el código: crea la tienda y devuelve token. |
 | PUT | `/api/cuentas/mi-cuenta` | Teléfono, nombre y contraseña. Solo administrador. |
 
 ### Datos de la tienda

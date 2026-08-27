@@ -47,6 +47,11 @@ export function TiendaProvider({ children }) {
   const [sesion, setSesion] = useState(() => leerSesion());
   const esAdmin = sesion?.modo === MODO.admin;
 
+  // La portada ("MI NEGOCIO DIGITAL") es lo primero que se ve al abrir la
+  // aplicación sin sesión, y se queda hasta que se pulsa INICIEMOS. Al cerrar
+  // sesión se vuelve a ella: es la puerta del sistema, no un adorno del arranque.
+  const [bienvenidaVista, setBienvenidaVista] = useState(false);
+
   // La URL puede nombrar la tienda (`/abarrote-sjuan`). Mientras se comprueba
   // contra el servidor no se enseña la pantalla de entrada: el comprador que
   // abre el enlace no tiene por qué ver un formulario que no va a usar.
@@ -269,6 +274,11 @@ export function TiendaProvider({ children }) {
     return nueva;
   }
 
+  /** INICIEMOS: deja atrás la portada y enseña la pantalla de acceso. */
+  function comenzar() {
+    setBienvenidaVista(true);
+  }
+
   /** Qué es lo escrito en la pantalla de entrada. Lanza si el servidor no responde. */
   function resolverAcceso(valor) {
     return api.acceso.resolver(valor);
@@ -322,9 +332,15 @@ export function TiendaProvider({ children }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  /** Modo administrador. Lanza si la clave falla o la cuenta está suspendida. */
-  async function entrarComoAdmin(telefono, password) {
-    const r = await api.acceso.admin(telefono, password);
+  /**
+   * Entra como administrador con un token recién emitido.
+   *
+   * Los tres caminos que abren sesión de dueño —contraseña, alta normal y
+   * activación por código— acaban aquí con la misma respuesta del servidor. La
+   * activación lo llama aparte, y no en cuanto responde el servidor, porque
+   * antes enseña el mensaje de cuenta creada con el ID de la tienda.
+   */
+  function entrarConSesionAdmin(r) {
     return aplicarSesion({
       modo: MODO.admin,
       idNegocio: r.idNegocio,
@@ -333,15 +349,32 @@ export function TiendaProvider({ children }) {
     });
   }
 
+  /** Modo administrador. Lanza si la clave falla o la cuenta está suspendida. */
+  async function entrarComoAdmin(telefono, password) {
+    return entrarConSesionAdmin(await api.acceso.admin(telefono, password));
+  }
+
   /** Alta de tienda. Entra directo como administrador. Lanza si el alta falla. */
   async function registrarTienda(datos) {
-    const r = await api.acceso.registrar(datos);
-    return aplicarSesion({
-      modo: MODO.admin,
-      idNegocio: r.idNegocio,
-      nombreTienda: r.nombreTienda,
-      token: r.token,
-    });
+    return entrarConSesionAdmin(await api.acceso.registrar(datos));
+  }
+
+  /**
+   * Alta por código, primer paso: n8n manda el código al WhatsApp indicado.
+   * Lanza si el número ya tiene tienda o no es válido.
+   */
+  function solicitarCodigo(telefono) {
+    return api.acceso.solicitarCodigo(telefono);
+  }
+
+  /**
+   * Alta por código, segundo paso: el código crea la cuenta y su tienda.
+   *
+   * Devuelve la sesión sin aplicarla, para que la pantalla pueda enseñar el ID
+   * de la tienda recién creada antes de entrar.
+   */
+  function activarCuenta({ telefono, codigo }) {
+    return api.acceso.activar({ telefono, codigo });
   }
 
   /**
@@ -370,6 +403,7 @@ export function TiendaProvider({ children }) {
     limpiarDatosTienda();
     setDrawerOpen(false);
     setView("catalogo");
+    setBienvenidaVista(false); // salir devuelve a la portada, que es la puerta
     setSesionMsg("Sesión cerrada.");
     setTimeout(() => setSesionMsg(""), 4000);
   }
@@ -752,6 +786,7 @@ export function TiendaProvider({ children }) {
     // acceso
     sesion, esAdmin, resolverAcceso, entrarComoCliente, entrarComoAdmin, registrarTienda,
     actualizarCuenta, enlaceTienda, entrandoPorEnlace,
+    bienvenidaVista, comenzar, solicitarCodigo, activarCuenta, entrarConSesionAdmin,
     // navegación
     view, setView, drawerOpen, setDrawerOpen, sesionMsg, irA, cerrarSesion,
     // negocio

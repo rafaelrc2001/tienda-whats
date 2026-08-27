@@ -6,10 +6,14 @@
 import BarraCarrito from "./components/carrito/BarraCarrito";
 import ModalHorario from "./components/common/ModalHorario";
 import DrawerMenu from "./components/layout/DrawerMenu";
+import FondoMarca from "./components/layout/FondoMarca";
 import Header from "./components/layout/Header";
 import { useTienda } from "./context/TiendaContext";
+import { MARCA } from "./config/marca";
 import { hexToRgba } from "./lib/format";
 import { Check } from "./icons";
+import AccesoView from "./views/AccesoView";
+import BienvenidaView from "./views/BienvenidaView";
 import CatalogoView from "./views/CatalogoView";
 import CheckoutView from "./views/CheckoutView";
 import ClientesView from "./views/ClientesView";
@@ -59,14 +63,35 @@ function estiloTema(theme) {
  */
 function AbriendoTienda() {
   return (
-    <p className="text-sm text-center py-12" style={{ color: "var(--muted)" }}>
-      Abriendo la tienda...
-    </p>
+    <FondoMarca>
+      <p className="flex-1 flex items-center justify-center text-sm" style={{ color: MARCA.tintaSuave }}>
+        Abriendo la tienda...
+      </p>
+    </FondoMarca>
   );
 }
 
 export default function App() {
-  const { theme, view, clienteActivo, sesionMsg, esAdmin, entrandoPorEnlace } = useTienda();
+  const {
+    bienvenidaVista,
+    clienteActivo,
+    entrandoPorEnlace,
+    esAdmin,
+    sesion,
+    sesionMsg,
+    theme,
+    view,
+  } = useTienda();
+
+  /**
+   * Antes de entrar a ninguna tienda la aplicación es otra cosa: pantalla
+   * completa, colores de la marca y sin barra ni menú, porque todavía no hay
+   * negocio del que sacar ni el tema ni las secciones.
+   */
+  if (!sesion) {
+    if (entrandoPorEnlace) return <AbriendoTienda />;
+    return bienvenidaVista ? <AccesoView /> : <BienvenidaView />;
+  }
 
   /**
    * Las secciones del dueño no se renderizan en modo cliente ni aunque el `view`
@@ -87,8 +112,7 @@ export default function App() {
           </div>
         )}
 
-        {view === "catalogo" &&
-          (entrandoPorEnlace ? <AbriendoTienda /> : clienteActivo ? <CatalogoView /> : <IdentificacionView />)}
+        {view === "catalogo" && (clienteActivo ? <CatalogoView /> : <IdentificacionView />)}
         {view === "checkout" && <CheckoutView />}
         {view === "confirmacion" && <ConfirmacionView />}
         {verSiEsAdmin("productos", <ProductosView />)}

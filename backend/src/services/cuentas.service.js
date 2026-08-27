@@ -73,7 +73,7 @@ export const cuentaPublica = (cuenta) => ({
 });
 
 /** Valida el teléfono y lo deja en la forma en que se guarda: solo dígitos. */
-function exigirTelefono(telefono) {
+export function exigirTelefono(telefono) {
   const numero = digits(telefono);
   if (numero.length < TELEFONO_MINIMO) {
     throw AppError.peticionInvalida("El teléfono de WhatsApp no es válido.");
@@ -105,19 +105,26 @@ export const cuentasService = {
     return cuentasRepository.buscarPorIdNegocio(idNegocio);
   },
 
+  /** Hash de una contraseña, con el coste que usa todo el sistema. */
+  hashDePassword(clave) {
+    return bcrypt.hash(String(clave), COSTE_BCRYPT);
+  },
+
   /**
-   * Da de alta una cuenta y su tienda.
+   * Inserta la cuenta y su tienda, sorteando el ID hasta que uno quede libre.
+   *
+   * Recibe el hash ya hecho y el nombre ya validado, porque hay dos caminos que
+   * llegan hasta aquí y no piden lo mismo: el alta normal, donde el dueño elige
+   * contraseña, y la activación por código, donde la contraseña es el propio
+   * código. Lo único que comparten es esta inserción.
    *
    * La unicidad del teléfono y del ID la garantizan las restricciones de la
    * base, no una comprobación previa: entre el `SELECT` y el `INSERT` cabe otro
    * registro simultáneo, y ese hueco es justo lo que la restricción cierra.
    */
-  async registrar({ telefono, password, nombreTienda } = {}) {
+  async crear({ telefono, passwordHash, nombreTienda }) {
     const numero = exigirTelefono(telefono);
-    const clave = exigirPassword(password);
     const nombre = exigirTexto(nombreTienda, "nombreTienda");
-
-    const passwordHash = await bcrypt.hash(clave, COSTE_BCRYPT);
 
     for (let intento = 0; intento < INTENTOS_ID; intento += 1) {
       const idNegocio = generarIdNegocio();
@@ -141,6 +148,12 @@ export const cuentasService = {
     throw AppError.peticionInvalida(
       "No se pudo reservar un ID para la tienda. Vuelve a intentarlo."
     );
+  },
+
+  /** Alta normal: el dueño escribe su teléfono, el nombre y una contraseña. */
+  async registrar({ telefono, password, nombreTienda } = {}) {
+    const passwordHash = await this.hashDePassword(exigirPassword(password));
+    return this.crear({ telefono, passwordHash, nombreTienda });
   },
 
   /**

@@ -100,6 +100,14 @@ export const api = {
     /** Alta de tienda. Devuelve lo mismo que `admin`: entra directo. */
     registrar: (datos) => postDuro("/cuentas", datos),
 
+    /**
+     * Alta por código, en dos pasos. `solicitarCodigo` hace que n8n mande el
+     * código al WhatsApp; `activar` lo canjea por la cuenta ya creada y su
+     * sesión, igual que `admin`.
+     */
+    solicitarCodigo: (telefono) => postDuro("/cuentas/codigo", { telefono }),
+    activar: ({ telefono, codigo }) => postDuro("/cuentas/activar", { telefono, codigo }),
+
     salir: () => postDuro("/acceso/salir"),
   },
 
